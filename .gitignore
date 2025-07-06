@@ -1,0 +1,16 @@
+# Compiled binaries
+dist/
+
+# demo files
+*.cast
+
+# config files
+config/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor config
+.vscode/
+.idea/
