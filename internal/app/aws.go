@@ -2,8 +2,10 @@ package app
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -158,9 +160,12 @@ func executeInteractiveAWSCommand(profile string, region string, args []string) 
 		cmd := exec.Command("aws", args...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+
+		var stderrBuf bytes.Buffer
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 		err := cmd.Run()
+		stderrString := stderrBuf.String()
 
 		if err == nil {
 			return nil
@@ -169,7 +174,7 @@ func executeInteractiveAWSCommand(profile string, region string, args []string) 
 			return nil
 		}
 
-		if strings.Contains(err.Error(), "Error loading SSO Token") || strings.Contains(err.Error(), "Token has expired") {
+		if strings.Contains(stderrString, "Error loading SSO Token") || strings.Contains(stderrString, "Token has expired") {
 			if i > 0 {
 				return fmt.Errorf("failed to refresh SSO token after retry")
 			}
