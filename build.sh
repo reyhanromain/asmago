@@ -19,7 +19,7 @@ HELPER_NAME="aws-sso-refresh"
 HELPER_SOURCE_PATH="./cmd/sso-refresh"
 CONFIG_SOURCE_PATH="./config"
 DIST_DIR="dist"
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 # --- Script Logic ---
 
