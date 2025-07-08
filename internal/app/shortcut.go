@@ -34,8 +34,10 @@ func (sm *ShortcutManager) addOrUpdate(shortcut Shortcut) {
 
 	var rdsPart string
 	if shortcut.Action == "Connect RDS" {
-		rdsKey := strings.Split(shortcut.RDS_ID, "|")[0]
-		rdsPart = fmt.Sprintf(" -> Connect RDS (%s)", rdsKey)
+		rdsArr := strings.Split(shortcut.RDS_ID, "|")
+		rdsKey := rdsArr[0]
+		rdsType := rdsArr[2]
+		rdsPart = fmt.Sprintf(" -> Connect RDS (%s - %s)", rdsKey, rdsType)
 	} else {
 		rdsPart = " -> Start Session (SSM)"
 	}
