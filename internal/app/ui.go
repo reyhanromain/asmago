@@ -48,7 +48,7 @@ func selectInstanceFromList(instances []EC2Instance) (*EC2Instance, error) {
 }
 
 // handleRDSSelection guides the user through selecting an RDS target.
-func handleRDSSelection(selectedInstance *EC2Instance, profile, region string) (*RDSConfig, error) {
+func handleRDSSelection(selectedInstance *EC2Instance) (*RDSConfig, error) {
 	allConfigs, err := loadRDSConfig()
 	if err != nil {
 		return nil, err

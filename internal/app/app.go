@@ -156,7 +156,7 @@ func (a *App) runManualFlow() error {
 
 	var rdsID string
 	if selectedAction == "Connect RDS" {
-		rdsConfig, err := handleRDSSelection(selectedInstance, selectedProfile, selectedRegion)
+		rdsConfig, err := handleRDSSelection(selectedInstance)
 		if err != nil {
 			return err
 		}

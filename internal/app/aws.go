@@ -151,11 +151,11 @@ func executeFinalAction(sc *Shortcut, region string, dryRun bool) error {
 		return nil
 	}
 
-	return executeInteractiveAWSCommand(sc.Profile, region, args)
+	return executeInteractiveAWSCommand(sc.Profile, args)
 }
 
 // executeInteractiveAWSCommand runs an AWS command that requires user interaction.
-func executeInteractiveAWSCommand(profile string, region string, args []string) error {
+func executeInteractiveAWSCommand(profile string, args []string) error {
 	for i := range 2 {
 		cmd := exec.Command("aws", args...)
 		cmd.Stdin = os.Stdin
