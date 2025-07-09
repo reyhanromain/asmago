@@ -63,7 +63,7 @@ func getRegionForProfile(profile string) (string, error) {
 // getAndSelectInstance fetches a list of EC2 instances and prompts the user to select one.
 // It also handles expired SSO tokens.
 func getAndSelectInstance(profile, region string) (*EC2Instance, error) {
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		fmt.Println(Cyan("ℹ️  Fetching running EC2 instances..."))
 		cmd := exec.Command("aws", "ec2", "describe-instances", "--profile", profile, "--region", region, "--filters", "Name=instance-state-name,Values=running", "--query", "Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key=='Name']|[0].Value}", "--output", "json")
 		output, err := cmd.CombinedOutput()
@@ -156,7 +156,7 @@ func executeFinalAction(sc *Shortcut, region string, dryRun bool) error {
 
 // executeInteractiveAWSCommand runs an AWS command that requires user interaction.
 func executeInteractiveAWSCommand(profile string, region string, args []string) error {
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		cmd := exec.Command("aws", args...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
