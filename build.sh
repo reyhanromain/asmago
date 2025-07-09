@@ -17,7 +17,7 @@ set -e
 APP_NAME="asmago"
 CONFIG_SOURCE_PATH="./config"
 DIST_DIR="dist"
-VERSION="1.0.2"
+VERSION="1.1.0"
 
 # --- Script Logic ---
 
