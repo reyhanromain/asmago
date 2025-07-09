@@ -14,6 +14,7 @@ var (
 	Yellow = color.New(color.FgYellow).SprintFunc()
 	Green  = color.New(color.FgGreen).SprintFunc()
 	Cyan   = color.New(color.FgCyan).SprintFunc()
+	Red    = color.New(color.FgRed).SprintFunc()
 )
 
 // Constants

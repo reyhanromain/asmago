@@ -13,7 +13,7 @@ Its main feature is a smart shortcut system that learns from your usage, display
 - **Interactive Workflow**: A command-line session that guides the user step-by-step, from selecting an AWS profile and instance to choosing the desired action.
 - **Smart Shortcuts**: Automatically creates and manages shortcuts based on the scenarios you run. The more you use a flow, the higher its priority becomes.
 - **Cross-Platform Support**: Compiles and runs on Windows, macOS, and Linux.
-- **Automatic SSO Token Handling**: Detects if an AWS SSO token has expired and automatically calls the `aws-sso-refresh` script to update it.
+- **Automatic SSO Token Handling**: Detects if an AWS SSO token has expired and automatically refresh it.
 - **Automatic Initialization**: On first run, `asmago` will automatically copy the `rds.json` configuration file to the user's configuration directory.
 - **Dry Run Mode**: See the AWS command that would be run without actually executing it, great for verification and debugging.
 - **Data Management**: A `clean` command to easily reset all shortcut data and usage history.
@@ -32,9 +32,7 @@ The easiest way to use `asmago` is to download the distribution package for your
 
 1. **Download and Extract**: Download the `.zip` or `.tar.gz` file for your OS and extract its contents. You will get a directory containing:
     - `asmago` (or `asmago.exe` on Windows)
-    - `aws-sso-refresh` (or `aws-sso-refresh.exe`)
     - `start-asmago.bat` (launcher for Windows only)
-    - `start-sso-refresh.bat` (launcher for Windows only)
 
 2. **Create your own rds.json**
     Go to the extracted directory. create `config/` folder and create `rds.json` file inside it with the following structure:
@@ -77,7 +75,7 @@ The easiest way to use `asmago` is to download the distribution package for your
     On the first run, `asmago` will automatically copy `config/rds.json` to the correct location in your user's home directory.
 
 4. **(Optional) Move to PATH**:
-    To be able to run `asmago` from any directory, move the `asmago` and `aws-sso-refresh` files to a directory that is in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
+    To be able to run `asmago` from any directory, move the `asmago` file to a directory that is in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
 
 ## Command List
 
