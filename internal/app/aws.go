@@ -42,16 +42,13 @@ func getAWSProfiles(configPath string) ([]string, error) {
 
 // getRegionForProfile gets the region for a given AWS profile.
 func getRegionForProfile(profile string) (string, error) {
-	cmd := exec.Command("aws", "configure", "get", "region", "--profile", profile)
-	output, err := cmd.Output()
-	if err == nil {
-		region := strings.TrimSpace(string(output))
-		if region != "" {
-			return region, nil
-		}
+	region := getPropertyForProfile(profile, "region")
+	if region != "" {
+		return region, nil
 	}
 
 	fmt.Println("Info: Region is not configured for this profile.")
+
 	prompt := promptui.Prompt{Label: "Enter AWS Region", Default: "ap-southeast-1"}
 	result, err := prompt.Run()
 	if err != nil {
@@ -60,62 +57,62 @@ func getRegionForProfile(profile string) (string, error) {
 	return result, nil
 }
 
+// Helper to run 'aws configure get'
+func getPropertyForProfile(profile, key string) string {
+	cmd := exec.Command("aws", "configure", "get", key, "--profile", profile)
+	output, err := cmd.Output()
+	if err != nil {
+		return "" // Key or profile does not exist
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func isSsoProfile(profile string) bool {
+	ssoAccountId := getPropertyForProfile(profile, "sso_account_id")
+
+	return ssoAccountId != ""
+}
+
 // getAndSelectInstance fetches a list of EC2 instances and prompts the user to select one.
 // It also handles expired SSO tokens.
-func getAndSelectInstance(profile, region string) (*EC2Instance, error) {
-	for i := range 2 {
-		fmt.Println(Cyan("ℹ️  Fetching running EC2 instances..."))
-		cmd := exec.Command("aws", "ec2", "describe-instances", "--profile", profile, "--region", region, "--filters", "Name=instance-state-name,Values=running", "--query", "Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key=='Name']|[0].Value}", "--output", "json")
-		output, err := cmd.CombinedOutput()
+func getAndSelectInstance(profile, region string, retryCount int) (*EC2Instance, error) {
+	fmt.Println(Cyan("ℹ️  Fetching running EC2 instances..."))
+	cmd := exec.Command("aws", "ec2", "describe-instances", "--profile", profile, "--region", region, "--filters", "Name=instance-state-name,Values=running", "--query", "Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key=='Name']|[0].Value}", "--output", "json")
+	output, err := cmd.CombinedOutput()
 
-		if err == nil {
-			var instances []EC2Instance
-			if err := json.Unmarshal(output, &instances); err != nil {
-				return nil, fmt.Errorf("failed to parse JSON output: %w", err)
-			}
-			if len(instances) == 0 {
-				return nil, fmt.Errorf("no running EC2 instances found in region %s", region)
-			}
-			usageData, err := loadInstanceUsageData()
-			if err != nil {
-				return nil, err
-			}
-			for i := range instances {
-				instances[i].UsageCount = usageData[instances[i].ID]
-			}
-			sort.Slice(instances, func(i, j int) bool {
-				return instances[i].UsageCount > instances[j].UsageCount
-			})
-			return selectInstanceFromList(instances)
+	if err == nil {
+		var instances []EC2Instance
+		if err := json.Unmarshal(output, &instances); err != nil {
+			return nil, fmt.Errorf("failed to parse JSON output: %w", err)
 		}
-
-		outputStr := string(output)
-		if strings.Contains(outputStr, "Error loading SSO Token") || strings.Contains(outputStr, "Token has expired") {
-			if i > 0 {
-				return nil, fmt.Errorf("failed to refresh SSO token after retry")
-			}
-			fmt.Println(Yellow("⚠️  SSO token has expired. Running refresh script..."))
-
-			refreshCmdPath, err := getRefreshCommandPath()
-			if err != nil {
-				return nil, err
-			}
-			refreshCmd := exec.Command(refreshCmdPath, profile)
-			refreshCmd.Stdout = os.Stdout
-			refreshCmd.Stderr = os.Stderr
-			refreshCmd.Stdin = os.Stdin
-
-			if err := refreshCmd.Run(); err != nil {
-				return nil, fmt.Errorf("failed to execute refresh script: %w", err)
-			}
-
-			fmt.Println(Green("✅ Refresh script finished. Retrying to fetch instances..."))
-			continue
-		} else {
-			return nil, fmt.Errorf("failed to run AWS CLI command:\n---\n%s---", outputStr)
+		if len(instances) == 0 {
+			return nil, fmt.Errorf("no running EC2 instances found in region %s", region)
 		}
+		usageData, err := loadInstanceUsageData()
+		if err != nil {
+			return nil, err
+		}
+		for i := range instances {
+			instances[i].UsageCount = usageData[instances[i].ID]
+		}
+		sort.Slice(instances, func(i, j int) bool {
+			return instances[i].UsageCount > instances[j].UsageCount
+		})
+		return selectInstanceFromList(instances)
 	}
-	return nil, fmt.Errorf("failed to get instance list after multiple attempts")
+
+	if retryCount > 0 {
+		return nil, fmt.Errorf("failed to refresh SSO token after retry")
+	}
+
+	if canRetry, err := executeRefreshProfileAction(profile); err != nil {
+		return nil, err
+	} else if canRetry {
+		fmt.Println(Cyan("🔁 Retrying..."))
+		return getAndSelectInstance(profile, region, retryCount+1)
+	}
+
+	return nil, fmt.Errorf("failed to fetch running EC2 instances: %s", string(output))
 }
 
 // executeFinalAction executes the final command or displays it if in dry run mode.
@@ -151,53 +148,53 @@ func executeFinalAction(sc *Shortcut, region string, dryRun bool) error {
 		return nil
 	}
 
-	return executeInteractiveAWSCommand(sc.Profile, args)
+	return executeInteractiveAWSCommand(sc.Profile, args, 0)
 }
 
 // executeInteractiveAWSCommand runs an AWS command that requires user interaction.
-func executeInteractiveAWSCommand(profile string, args []string) error {
-	for i := range 2 {
-		cmd := exec.Command("aws", args...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
+func executeInteractiveAWSCommand(profile string, args []string, retryCount int) error {
+	cmd := exec.Command("aws", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
 
-		var stderrBuf bytes.Buffer
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
-		err := cmd.Run()
-		stderrString := stderrBuf.String()
+	err := cmd.Run()
+	stderrString := stderrBuf.String()
 
-		if err == nil {
-			return nil
-		}
-		if strings.Contains(strings.ToLower(err.Error()), "signal: interrupt") {
-			return nil
-		}
-
-		if strings.Contains(stderrString, "Error loading SSO Token") || strings.Contains(stderrString, "Token has expired") {
-			if i > 0 {
-				return fmt.Errorf("failed to refresh SSO token after retry")
-			}
-			fmt.Println(Yellow("⚠️  SSO token has expired. Running refresh script..."))
-
-			refreshCmdPath, err := getRefreshCommandPath()
-			if err != nil {
-				return err
-			}
-			refreshCmd := exec.Command(refreshCmdPath, profile)
-			refreshCmd.Stdout = os.Stdout
-			refreshCmd.Stderr = os.Stderr
-			refreshCmd.Stdin = os.Stdin
-
-			if err := refreshCmd.Run(); err != nil {
-				return fmt.Errorf("failed to execute refresh script: %w", err)
-			}
-
-			fmt.Println(Green("✅ Refresh script finished. Retrying..."))
-			continue
-		}
-
-		return fmt.Errorf("command failed: %w", err)
+	if err == nil {
+		return nil
 	}
-	return fmt.Errorf("failed after multiple attempts")
+
+	if retryCount > 0 {
+		return fmt.Errorf("failed to refresh SSO token after retry")
+	}
+
+	if canRetry, err := executeRefreshProfileAction(profile); err != nil {
+		return err
+	} else if canRetry {
+		fmt.Println(Cyan("🔁 Retrying..."))
+		return executeInteractiveAWSCommand(profile, args, retryCount+1)
+	}
+
+	return fmt.Errorf("failed to run AWS CLI command: %s", stderrString)
+}
+
+func executeRefreshProfileAction(profile string) (bool, error) {
+	if !isSsoProfile(profile) {
+		return false, nil
+	}
+
+	fmt.Println(Yellow("⚠️  SSO token has expired. Starting to refresh the token..."))
+
+	ssoRefreshed, err := ssoRefresh(profile)
+	if err != nil {
+		return false, err
+	}
+	if !ssoRefreshed {
+		return false, fmt.Errorf("❌ Refresh token canceled due to non SSO profile being used")
+	}
+
+	return true, nil
 }

@@ -22,7 +22,7 @@ func NewApp(dryRun bool) (*App, error) {
 		return nil, fmt.Errorf("failed during configuration initialization: %w", err)
 	}
 
-	// Check for required dependencies (aws cli, aws-sso-refresh).
+	// Check for required dependencies.
 	if err := checkDependencies(); err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (a *App) runManualFlow() error {
 	fmt.Printf("Using Profile: %s, Region: %s\n", selectedProfile, selectedRegion)
 	fmt.Println("-------------------------------------")
 
-	selectedInstance, err := getAndSelectInstance(selectedProfile, selectedRegion)
+	selectedInstance, err := getAndSelectInstance(selectedProfile, selectedRegion, 0)
 	if err != nil {
 		return err
 	}

@@ -15,8 +15,6 @@ set -e
 
 # --- Configuration ---
 APP_NAME="asmago"
-HELPER_NAME="aws-sso-refresh"
-HELPER_SOURCE_PATH="./cmd/sso-refresh"
 CONFIG_SOURCE_PATH="./config"
 DIST_DIR="dist"
 VERSION="1.0.2"
@@ -68,7 +66,6 @@ build_for_platform() {
     # Perform cross-compilation with version injection
     local ldflags="-X 'main.version=$VERSION'"
     GOOS=$os GOARCH=$arch go build -ldflags="$ldflags" -o "$output_dir/$APP_NAME$app_ext" .
-    GOOS=$os GOARCH=$arch go build -o "$output_dir/$HELPER_NAME$helper_ext" $HELPER_SOURCE_PATH
 
     # Copy the configuration directory
     #if [ -d "$CONFIG_SOURCE_PATH" ]; then
@@ -84,13 +81,6 @@ build_for_platform() {
         echo "REM This script opens a new terminal and runs the asmago application." >> "$output_dir/start-asmago.bat"
         echo "SET SCRIPT_DIR=%~dp0" >> "$output_dir/start-asmago.bat"
         echo "start \"asmago\" cmd /k \"%SCRIPT_DIR%${APP_NAME}.exe\"" >> "$output_dir/start-asmago.bat"
-
-        # Create start-sso-refresh.bat
-        echo "@echo off" > "$output_dir/start-sso-refresh.bat"
-        echo "REM This script opens a new terminal and runs aws-sso-refresh." >> "$output_dir/start-sso-refresh.bat"
-        echo "SET SCRIPT_DIR=%~dp0" >> "$output_dir/start-sso-refresh.bat"
-        echo "set /p profile=\"Enter AWS Profile Name: \"" >> "$output_dir/start-sso-refresh.bat"
-        echo "start \"AWS SSO Refresh\" cmd /k \"%SCRIPT_DIR%${HELPER_NAME}.exe\" %profile%" >> "$output_dir/start-sso-refresh.bat"
     fi
 
     success "Build for $os/$arch version $VERSION finished -> $output_dir"
@@ -133,7 +123,6 @@ elif [[ "$1" == "--install" || "$1" == "-i" ]]; then
         source_dir="$DIST_DIR/${current_os}-${current_arch}"
         info "Copying files from '$source_dir' to '$INSTALL_DIR'..."
         sudo mv "$source_dir/$APP_NAME" "$INSTALL_DIR/$APP_NAME"
-        sudo mv "$source_dir/$HELPER_NAME" "$INSTALL_DIR/$HELPER_NAME"
 
         success "Installation complete! You can now run '$APP_NAME' from anywhere."
     else
